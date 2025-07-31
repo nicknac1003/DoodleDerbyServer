@@ -7,11 +7,18 @@
     "dev": "nodemon server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["express", "server", "doodle", "derby"],
+  "keywords": [
+    "express",
+    "server",
+    "doodle",
+    "derby"
+  ],
   "author": "",
   "license": "ISC",
   "description": "A Node.js Express server for Doodle Derby",
   "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
     "express": "^5.1.0"
   },
   "devDependencies": {

@@ -1,31 +1,36 @@
-const express = require('express');
+require('dotenv').config();
+const express = require("express");
+const cors = require("cors");
+const port = process.env.PORT || 3000;
+const { Pool } = require("pg");
+
 const app = express();
-const PORT = process.env.PORT || 3000;
-
-// Middleware
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(cors());
 
-// Basic route
-app.get('/', (req, res) => {
-    res.json({ 
-        message: 'Welcome to Doodle Derby Server!',
-        status: 'Server is running successfully'
-    });
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
+    }
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'OK',
-        timestamp: new Date().toISOString()
-    });
+app.get("/", (req, res) => {
+    res.send("Hello World");
 });
 
-// Start server
-app.listen(PORT, () => {
-    console.log(`Doodle Derby Server is running on port ${PORT}`);
-    console.log(`Visit http://localhost:${PORT} to see the server`);
+app.get("/testdb", async (req, res) => {
+    try {
+        const client = await pool.connect();
+        const result = await client.query("SELECT * from leaderboard;");
+        const results = result ? result.rows : null ;
+        response_string = `Hello World! Current time from DB: ${JSON.stringify(results)}`;
+        res.send(response_string);
+        
+        client.release();
+    } catch (err) {
+        console.error(err);
+        res.send("Error " + err);
+    }
 });
 
-module.exports = app;
