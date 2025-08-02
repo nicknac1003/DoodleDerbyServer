@@ -9,20 +9,20 @@
  * @param {number} round - The round number to filter doodles by
  * @returns {Promise<Array>} Array of doodle objects for the race
  */
-async function getDoodlesForRace(client, num_racers, round) {
+async function getDoodlesForRace(client, num_racers, round, userId) {
     try {
         // Query to get random doodles from the specified round
         const query = `
             SELECT d.doodle_id, d.running, d.climbing, d.swimming, d.jumping, d.stamina, u.name as name, u.img as user_img
             FROM doodles d
             LEFT JOIN users u ON d.user_id = u.user_id
-            WHERE d.round = $1
+            WHERE d.round = $1 AND d.user_id != $2
             ORDER BY RANDOM()
-            LIMIT $2
+            LIMIT $3
         `;
-        
-        const result = await client.query(query, [round, num_racers]);
-        
+
+        const result = await client.query(query, [round, userId, num_racers]);
+
         if (result.rows.length === 0) {
             throw new Error(`No doodles found for round ${round}`);
         }

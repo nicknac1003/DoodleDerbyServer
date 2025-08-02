@@ -97,6 +97,7 @@ app.post("/doodle/save", authenticate, async (req, res) => {
 });
 
 app.post("/race/start", authenticate, async (req, res) => {
+    const { userId } = req;
     const { roundNumber, mapSeed, num_racers } = req.body;
 
     if (!roundNumber || !mapSeed) {
@@ -113,7 +114,7 @@ app.post("/race/start", authenticate, async (req, res) => {
         await createRace(client, raceId, mapSeed, roundNumber);
 
         try {
-            const doodles = await getDoodlesForRace(client, num_racers, roundNumber);
+            const doodles = await getDoodlesForRace(client, num_racers, roundNumber, userId);
 
             res.json({
                 raceId,
