@@ -7,7 +7,7 @@ const jwt = require("jsonwebtoken");
 const { Pool } = require("pg");
 const crypto = require("crypto");
 const { getDoodlesForRace } = require("./matchmaking");
-const { createUser, createDoodle, createRace, createRaceResult } = require('./database');
+const { createUser, createDoodle, createRace, createRaceResult, getLeaderboard } = require('./database');
 const app = express();
 app.use(express.json());
 app.use(cors());
@@ -166,6 +166,44 @@ app.post("/race/results", authenticate, async (req, res) => {
     } catch (err) {
         console.error('Error saving race results:', err);
         res.status(500).json({ error: 'Failed to save race results' });
+    } finally {
+        if (client) {
+            client.release();
+        }
+    }
+});
+
+app.get("/leaderboard/:round", authenticate, async (req, res) => {
+    const { round } = req.params;
+    const limit_num = 1000;
+
+    let client;
+    try {
+        client = await pool.connect();
+        const leaderboard = await getLeaderboard(client, round, limit_num);
+        res.json( leaderboard );
+    } catch (err) {
+        console.error('Error fetching leaderboard:', err);
+        res.status(500).json({ error: 'Failed to fetch leaderboard' });
+    } finally {
+        if (client) {
+            client.release();
+        }
+    }
+});
+app.get("/leaderboard/user/:round", authenticate, async (req, res) => {
+    const { userId } = req;
+    const { round } = req.params;
+
+    let client;
+    try {
+        client = await pool.connect();
+
+        const rank = await getUserRank(client, userId, round);
+        res.json({ rank });
+    } catch (err) {
+        console.error('Error fetching user rank:', err);
+        res.status(500).json({ error: 'Failed to fetch user rank' });
     } finally {
         if (client) {
             client.release();
