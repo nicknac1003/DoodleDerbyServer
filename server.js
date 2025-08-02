@@ -43,11 +43,13 @@ app.post("/auth/new", async (req, res) => {
         return res.status(403).json({ error: 'Request expired' });
     }
 
-    let name, sprite;
+    let name, sprite1, sprite2;
     try {
-        ({ name, sprite } = req.body);
-        if (!name || !sprite) {
-            return res.status(400).json({ error: 'Name and sprite are required' });
+        ({ name, sprite1, sprite2 } = req.body);
+        sprite1 = sprite1 ? Buffer.from(sprite1, 'base64') : null;
+        sprite2 = sprite2 ? Buffer.from(sprite2, 'base64') : null;
+        if (!name ) {
+            return res.status(400).json({ error: 'Name, sprite1, and sprite2 are required' });
         }
     } catch (err) {
         console.error('Error parsing request body:', err);
@@ -59,7 +61,7 @@ app.post("/auth/new", async (req, res) => {
     try {
         client = await pool.connect();
 
-        await createUser(client, userId, name, sprite);
+        await createUser(client, userId, name, sprite1, sprite2);
 
         const token = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '1d' });
         res.json({ token });
@@ -75,7 +77,7 @@ app.post("/auth/new", async (req, res) => {
 app.post("/doodle/save", authenticate, async (req, res) => {
     
     const { userId } = req;
-    const { doodle } = req.body;
+    const { roundNumber, doodle } = req.body;
     if (!doodle) {
         return res.status(400).json({ error: 'Doodle data is required' });
     }
@@ -84,7 +86,7 @@ app.post("/doodle/save", authenticate, async (req, res) => {
     try {
         client = await pool.connect();
         console.log('Saving doodle for user:', userId);
-        const doodle_id = await createDoodle(client, userId, doodle);
+        const doodle_id = await createDoodle(client, userId, { ...doodle, roundNumber });
         res.json({ doodle_id });
     } catch (err) {
         console.error('Error saving doodle:', err);

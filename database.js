@@ -1,8 +1,8 @@
-async function createUser(client, userId, name, img) {
+async function createUser(client, userId, name, frame1, frame2) {
     try {
         await client.query(
-            "INSERT INTO users (user_id, name, img) VALUES ($1, $2, $3)",
-            [userId, name, img]
+            "INSERT INTO users (user_id, name, frame1, frame2) VALUES ($1, $2, $3, $4)",
+            [userId, name, frame1, frame2]
         );
     } catch (err) {
         console.error('Error creating user:', err);

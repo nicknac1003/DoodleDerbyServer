@@ -13,7 +13,7 @@ async function getDoodlesForRace(client, num_racers, round, userId) {
     try {
         // Query to get random doodles from the specified round
         const query = `
-            SELECT d.doodle_id, d.running, d.climbing, d.swimming, d.jumping, d.stamina, u.name as name, u.img as user_img
+            SELECT d.doodle_id, d.running, d.climbing, d.swimming, d.jumping, d.stamina, u.name as name, u.frame1 as sprite1, u.frame2 as sprite2
             FROM doodles d
             LEFT JOIN users u ON d.user_id = u.user_id
             WHERE d.round = $1 AND d.user_id != $2
@@ -31,7 +31,14 @@ async function getDoodlesForRace(client, num_racers, round, userId) {
             console.warn(`Only ${result.rows.length} doodles available for round ${round}, requested ${num_racers}`);
         }
         
-        return result.rows;
+        // Convert sprite buffers to base64 strings
+        const processedRows = result.rows.map(row => ({
+            ...row,
+            sprite1: row.sprite1 ? Buffer.from(row.sprite1).toString('base64') : null,
+            sprite2: row.sprite2 ? Buffer.from(row.sprite2).toString('base64') : null
+        }));
+        
+        return processedRows;
         
     } catch (err) {
         console.error('Error getting doodles for race:', err);
