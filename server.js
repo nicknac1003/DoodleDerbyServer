@@ -98,7 +98,7 @@ app.post("/doodle/save", authenticate, async (req, res) => {
 
 app.post("/race/start", authenticate, async (req, res) => {
     const { userId } = req;
-    const { roundNumber, mapSeed, num_racers } = req.body;
+    const { roundNumber, mapSeed, num_racers, isOlympic } = req.body;
 
     if (!roundNumber || !mapSeed) {
         return res.status(400).json({ error: 'Round and mapSeed are required' });
@@ -111,7 +111,7 @@ app.post("/race/start", authenticate, async (req, res) => {
     let client;
     try {
         client = await pool.connect();
-        await createRace(client, raceId, mapSeed, roundNumber);
+        await createRace(client, raceId, mapSeed, roundNumber, isOlympic);
 
         try {
             const doodles = await getDoodlesForRace(client, num_racers, roundNumber, userId);

@@ -43,11 +43,11 @@ async function createDoodle(client, userId, doodleData) {
     }
 }
 
-async function createRace(client, raceId, mapSeed, round) {
+async function createRace(client, raceId, mapSeed, round, isOlympic) {
     try {
         await client.query(
-            "INSERT INTO races (race_id, map_seed, round) VALUES ($1, $2, $3)",
-            [raceId, mapSeed, round]
+            "INSERT INTO races (race_id, map_seed, round, is_olympic) VALUES ($1, $2, $3, $4)",
+            [raceId, mapSeed, round, isOlympic]
         );
     } catch (err) {
         console.error('Error creating race:', err);
