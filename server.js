@@ -1,9 +1,13 @@
 require('dotenv').config();
 const express = require("express");
 const cors = require("cors");
+const { v4: uuidv4 } = require("uuid");
 const port = process.env.PORT || 3000;
+const jwt = require("jsonwebtoken");
 const { Pool } = require("pg");
-
+const crypto = require("crypto");
+const { getDoodlesForRace } = require("./matchmaking");
+const { createUser, createDoodle, createRace, createRaceResult } = require('./database');
 const app = express();
 app.use(express.json());
 app.use(cors());
@@ -15,22 +19,209 @@ const pool = new Pool({
     }
 });
 
-app.get("/", (req, res) => {
+
+app.get("/", authenticate, (req, res) => {
     res.send("Hello World");
 });
+app.post("/", authenticate, (req, res) => {
+    res.send("Hello World post");
+});
 
-app.get("/testdb", async (req, res) => {
+app.post("/auth/new", async (req, res) => {
+
+    const headers = req.headers;
+    const requiredHeaders = ['x-client-type', 'x-game-client', 'x-timestamp', 'x-platform', 'x-unity-version'];
+    for (const header of requiredHeaders) {
+        if (!req.headers[header]) {
+            return res.status(403).json({ error: 'Missing required headers' });
+        }
+    }
+
+    const timestamp = parseInt(headers['x-timestamp']);
+    const now = Math.floor(Date.now() / 1000);
+    if (Math.abs(now - timestamp) > 300) { // 5 minute window
+        return res.status(403).json({ error: 'Request expired' });
+    }
+
+    let name, sprite;
     try {
-        const client = await pool.connect();
-        const result = await client.query("SELECT * from leaderboard;");
-        const results = result ? result.rows : null ;
-        response_string = `Hello World! Current time from DB: ${JSON.stringify(results)}`;
-        res.send(response_string);
-        
-        client.release();
+        ({ name, sprite } = req.body);
+        if (!name || !sprite) {
+            return res.status(400).json({ error: 'Name and sprite are required' });
+        }
     } catch (err) {
-        console.error(err);
-        res.send("Error " + err);
+        console.error('Error parsing request body:', err);
+        return res.status(400).json({ error: 'Invalid request body' });
+    }
+
+    const userId = uuidv4();
+    let client;
+    try {
+        client = await pool.connect();
+
+        await createUser(client, userId, name, sprite);
+
+        const token = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '1d' });
+        res.json({ token });
+    } catch (err) {
+        console.error('Auth error:', err);
+        res.status(500).json({ error: 'Authentication failed' });
+    } finally {
+        if (client) 
+            client.release();
     }
 });
+
+app.post("/doodle/save", authenticate, async (req, res) => {
+    
+    const { userId } = req;
+    const { doodle } = req.body;
+    if (!doodle) {
+        return res.status(400).json({ error: 'Doodle data is required' });
+    }
+
+    let client;
+    try {
+        client = await pool.connect();
+        console.log('Saving doodle for user:', userId);
+        const doodle_id = await createDoodle(client, userId, doodle);
+        res.json({ doodle_id });
+    } catch (err) {
+        console.error('Error saving doodle:', err);
+        res.status(500).json({ error: 'Failed to save doodle' });
+    } finally {
+        if (client) {
+            client.release();
+        }
+    }
+});
+
+app.post("/race/start", authenticate, async (req, res) => {
+    const { roundNumber, mapSeed, num_racers } = req.body;
+
+    if (!roundNumber || !mapSeed) {
+        return res.status(400).json({ error: 'Round and mapSeed are required' });
+    }
+    if (!num_racers || num_racers <= 0) {
+        num_racers = 7;
+    }
+
+    const raceId = uuidv4();
+    let client;
+    try {
+        client = await pool.connect();
+        await createRace(client, raceId, mapSeed, roundNumber);
+
+        try {
+            const doodles = await getDoodlesForRace(client, num_racers, roundNumber);
+
+            res.json({
+                raceId,
+                doodles
+            });
+        } catch (err) {
+            console.error('Error getting doodles for race:', err);
+            res.status(500).json({ error: 'Failed to get doodles for race' });
+        }
+
+    } catch (err) {
+        console.error('Race start error:', err);
+        res.status(500).json({ error: 'Failed to start race' });
+    } finally {
+        if (client) {
+            client.release();
+        }
+    }
+});
+
+app.post("/race/results", authenticate, async (req, res) => {
+    const { raceId, results } = req.body;
+
+    let client;
+    const resultsList = [];
+    
+    try {
+        client = await pool.connect();
+
+        // Process the race results
+        for (const result of results) {
+            const { doodleId, position, time } = result;
+            try {
+                await createRaceResult(client, raceId, doodleId, position, time);
+                resultsList.push({ doodle_id: doodleId, success: true });
+            } catch (err) {
+                console.error('Error creating race result:', err);
+                resultsList.push({ doodle_id: doodleId, success: false, error: err.message });
+            }
+        }
+        
+        res.json({ 
+            raceId: raceId,
+            results: resultsList,
+            overall_success: resultsList.every(r => r.success)
+        });
+    } catch (err) {
+        console.error('Error saving race results:', err);
+        res.status(500).json({ error: 'Failed to save race results' });
+    } finally {
+        if (client) {
+            client.release();
+        }
+    }
+});
+
+app.listen(port, () => console.log(`Server running on port ${port}`));
+
+function authenticate(req, res, next) {
+    const headers = req.headers;
+    const requiredHeaders = ['x-client-type', 'x-game-client', 'x-timestamp', 'x-platform', 'x-unity-version', 'x-signature'];
+    for (const header of requiredHeaders) {
+        if (!headers[header]) {
+            return res.status(403).json({ error: 'Invalid headers' });
+        }
+    }
+    if (headers['x-client-type'] !== 'unity-game') {
+        return res.status(403).json({ error: 'Invalid headers' });
+    }
+    if (headers['x-game-client'] !== 'DoodleDerby') {
+        return res.status(403).json({ error: 'Invalid headers' });
+    }
+    if (headers['x-unity-version'] !== '6000.0.35f1') {
+        return res.status(403).json({ error: 'Invalid headers' });
+    }
+
+
+
+
+    const timestamp = parseInt(headers['x-timestamp']);
+    const now = Math.floor(Date.now() / 1000);
+    if (Math.abs(now - timestamp) > 300) { // 5 minute window
+        return res.status(403).json({ error: 'Request expired' });
+    }
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'No token provided' });
+
+    const token = authHeader.split(' ')[1];
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.userId = decoded.userId;
+
+
+        const secret = Buffer.from(process.env.HMAC_SECRET, 'base64');
+        const hmac = crypto.createHmac('sha256', secret);
+        const signature = hmac.update(token + headers['x-timestamp']).digest('base64');
+
+        if (signature !== headers['x-signature']) {
+            return res.status(403).json({ error: 'Invalid headers' });
+        }
+
+        next();
+    } catch (err) {
+        console.error('Auth error:', err);
+        res.status(401).json({ error: 'Invalid or expired token' });
+    }
+
+
+}
 
