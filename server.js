@@ -6,7 +6,7 @@ const port = process.env.PORT || 3000;
 const jwt = require("jsonwebtoken");
 const { Pool } = require("pg");
 const crypto = require("crypto");
-const { getDoodlesForRace } = require("./matchmaking");
+const { getDoodlesForRace, getTopDoodlesForRace } = require("./matchmaking");
 const { createUser, createDoodle, createRace, createRaceResult, getLeaderboard } = require('./database');
 const app = express();
 app.use(express.json());
@@ -116,7 +116,13 @@ app.post("/race/start", authenticate, async (req, res) => {
         await createRace(client, raceId, mapSeed, roundNumber, isOlympic);
 
         try {
-            const doodles = await getDoodlesForRace(client, num_racers, roundNumber, userId);
+            let doodles;
+            if (isOlympic) {
+                doodles = await getTopDoodlesForRace(client, num_racers, roundNumber);
+            }
+            else {
+                doodles = await getDoodlesForRace(client, num_racers, roundNumber, userId);
+            }
 
             res.json({
                 raceId,

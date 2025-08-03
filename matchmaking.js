@@ -56,24 +56,31 @@ async function getDoodlesForRace(client, num_racers, round, userId) {
  */
 async function getTopDoodlesForRace(client, num_racers, round) {
     try {
-        // Assumes you have a wins or performance metric in your doodles table
+        // Query to get top doodles based on best time for the specified round
         const query = `
-            SELECT d.*, u.name as user_name, u.img as user_img
+            SELECT d.doodle_id, d.running, d.climbing, d.swimming, d.jumping, d.stamina, u.name as name, u.frame1, u.frame2
             FROM doodles d
             LEFT JOIN users u ON d.user_id = u.user_id
             WHERE d.round = $1
-            ORDER BY d.wins DESC, d.created_at ASC
+            ORDER BY (SELECT MIN(finish_time) FROM race_results rr WHERE rr.doodle_id = d.doodle_id) ASC
             LIMIT $2
         `;
-        
+
         const result = await client.query(query, [round, num_racers]);
-        
+
         if (result.rows.length === 0) {
             throw new Error(`No doodles found for round ${round}`);
         }
-        
-        return result.rows;
-        
+
+        // Convert sprite buffers to base64 strings
+        const processedRows = result.rows.map(row => ({
+            ...row,
+            frame1: row.frame1 ? Buffer.from(row.frame1).toString('base64') : null,
+            frame2: row.frame2 ? Buffer.from(row.frame2).toString('base64') : null
+        }));
+
+        return processedRows;
+
     } catch (err) {
         console.error('Error getting top doodles for race:', err);
         throw new Error(`Failed to get top doodles for race: ${err.message}`);
