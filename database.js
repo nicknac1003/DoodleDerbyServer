@@ -93,7 +93,7 @@ async function getLeaderboard(client, round, limit_num) {
                 d.swimming, 
                 d.jumping, 
                 d.stamina, 
-                rs.best_time as finish_time,
+                rs.best_time as fastest_time,
                 rs.avg_time as avg_time,
                 ROUND(rs.avg_position, 2) as avg_position,
                 rs.mode_position,
