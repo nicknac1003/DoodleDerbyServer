@@ -101,7 +101,7 @@ app.post("/doodle/save", authenticate, async (req, res) => {
 app.post("/race/start", authenticate, async (req, res) => {
     const { userId } = req;
     const { roundNumber, mapSeed, num_racers, isOlympic } = req.body;
-
+    console.log(roundNumber, mapSeed, num_racers, isOlympic);
     if (!roundNumber || !mapSeed) {
         return res.status(400).json({ error: 'Round and mapSeed are required' });
     }
@@ -155,6 +155,7 @@ app.post("/race/results", authenticate, async (req, res) => {
         // Process the race results
         for (const result of results) {
             const { doodleId, position, time } = result;
+            console.log(`Saving result for doodle ${doodleId} with position ${position} and time ${time}`);
             try {
                 await createRaceResult(client, raceId, doodleId, position, time);
                 resultsList.push({ doodle_id: doodleId, success: true });
@@ -221,7 +222,7 @@ app.listen(port, () => console.log(`Server running on port ${port}`));
 
 function authenticate(req, res, next) {
     const headers = req.headers;
-    const requiredHeaders = ['x-client-type', 'x-game-client', 'x-timestamp', 'x-platform', 'x-unity-version', 'x-signature'];
+    const requiredHeaders = ['x-client-type', 'x-game-client', 'x-timestamp', 'x-platform', 'x-signature'];
     for (const header of requiredHeaders) {
         if (!headers[header]) {
             return res.status(403).json({ error: 'Invalid headers' });
@@ -231,9 +232,6 @@ function authenticate(req, res, next) {
         return res.status(403).json({ error: 'Invalid headers' });
     }
     if (headers['x-game-client'] !== 'DoodleDerby') {
-        return res.status(403).json({ error: 'Invalid headers' });
-    }
-    if (headers['x-unity-version'] !== '6000.0.35f1') {
         return res.status(403).json({ error: 'Invalid headers' });
     }
 
