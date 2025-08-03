@@ -30,7 +30,7 @@ app.post("/", authenticate, (req, res) => {
 app.post("/auth/new", async (req, res) => {
 
     const headers = req.headers;
-    const requiredHeaders = ['x-client-type', 'x-game-client', 'x-timestamp', 'x-platform', 'x-unity-version'];
+    const requiredHeaders = ['x-client-type', 'x-game-client', 'x-timestamp', 'x-platform'];
     for (const header of requiredHeaders) {
         if (!req.headers[header]) {
             return res.status(403).json({ error: 'Missing required headers' });
