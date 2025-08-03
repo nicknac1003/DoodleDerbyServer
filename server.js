@@ -225,14 +225,14 @@ function authenticate(req, res, next) {
     const requiredHeaders = ['x-client-type', 'x-game-client', 'x-timestamp', 'x-platform', 'x-signature'];
     for (const header of requiredHeaders) {
         if (!headers[header]) {
-            return res.status(403).json({ error: 'Invalid headers' });
+            return res.status(403).json({ error: 'Header missing' });
         }
     }
     if (headers['x-client-type'] !== 'unity-game') {
-        return res.status(403).json({ error: 'Invalid headers' });
+        return res.status(403).json({ error: 'Invalid client type' });
     }
     if (headers['x-game-client'] !== 'DoodleDerby') {
-        return res.status(403).json({ error: 'Invalid headers' });
+        return res.status(403).json({ error: 'Invalid game client' });
     }
 
 
