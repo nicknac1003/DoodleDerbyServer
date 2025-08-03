@@ -118,7 +118,7 @@ app.post("/race/start", authenticate, async (req, res) => {
         try {
             let doodles;
             if (isOlympic) {
-                doodles = await getTopDoodlesForRace(client, num_racers, roundNumber);
+                doodles = await getTopDoodlesForRace(client, num_racers, roundNumber, userId);
             }
             else {
                 doodles = await getDoodlesForRace(client, num_racers, roundNumber, userId);

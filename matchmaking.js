@@ -54,19 +54,19 @@ async function getDoodlesForRace(client, num_racers, round, userId) {
  * @param {number} round - The round number to filter doodles by
  * @returns {Promise<Array>} Array of top performing doodle objects
  */
-async function getTopDoodlesForRace(client, num_racers, round) {
+async function getTopDoodlesForRace(client, num_racers, round, userId) {
     try {
         // Query to get top doodles based on best time for the specified round
         const query = `
             SELECT d.doodle_id, d.running, d.climbing, d.swimming, d.jumping, d.stamina, u.name as name, u.frame1, u.frame2
             FROM doodles d
             LEFT JOIN users u ON d.user_id = u.user_id
-            WHERE d.round = $1
+            WHERE d.round = $1 and d.user_id != $3
             ORDER BY (SELECT MIN(finish_time) FROM race_results rr WHERE rr.doodle_id = d.doodle_id) ASC
             LIMIT $2
         `;
 
-        const result = await client.query(query, [round, num_racers]);
+        const result = await client.query(query, [round, num_racers, userId]);
 
         if (result.rows.length === 0) {
             throw new Error(`No doodles found for round ${round}`);
