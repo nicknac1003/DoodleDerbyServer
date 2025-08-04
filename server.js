@@ -180,7 +180,7 @@ app.post("/race/results", authenticate, async (req, res) => {
     }
 });
 
-app.get("/leaderboard/:round", authenticate, async (req, res) => {
+app.get("/leaderboard/:round", async (req, res) => {
     const { round } = req.params;
     const limit_num = 1000;
 
