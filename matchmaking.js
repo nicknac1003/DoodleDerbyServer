@@ -62,7 +62,7 @@ async function getTopDoodlesForRace(client, num_racers, round, userId) {
             FROM doodles d
             LEFT JOIN users u ON d.user_id = u.user_id
             WHERE d.round = $1 and d.user_id != $3
-            ORDER BY (SELECT MIN(finish_time) FROM race_results rr WHERE rr.doodle_id = d.doodle_id) ASC
+            ORDER BY (SELECT avg(position) FROM race_results rr WHERE rr.doodle_id = d.doodle_id) ASC
             LIMIT $2
         `;
 
